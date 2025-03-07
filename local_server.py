@@ -1,3 +1,6 @@
+from gevent import monkey
+monkey.patch_all()
+
 from spacy.lang.en import English
 from spacy.matcher import Matcher
 from typing import List, Tuple
@@ -49,7 +52,7 @@ class SpacyRedactor:
 
                 if number_count >= 3:
                     return_tuple = (start_idx, last_num_end)
-            elif number_count> 0 and len(token.text.strip()) > 15:
+            elif number_count > 0 and len(token.text.strip()) > 15:
                 number_count = 0
                 start_idx = None
             else:
@@ -106,7 +109,6 @@ class SpacyRedactor:
             if len(matches) > 0:
                 cvv_found = True
                 cvv_index = i
-
                 break
 
         if cvv_found:
@@ -144,6 +146,10 @@ redactor = SpacyRedactor()
 # Track connected clients
 connected_clients = {}
 
+@app.route('/')
+def index():
+    return 'Server is running'
+
 @socketio.on('connect')
 def handle_connect():
     client_id = request.sid
@@ -167,10 +173,7 @@ def redact_text(text):
                 'cbb|cbv|ccv|cdd|cdv|csv|' \
                 'see vv|see v v|c v v|c vv|cv v)'  # Spelled out variations
     
-    # ... existing code ...
-    
     return text
-
 
 @socketio.on('text')
 def handle_text(data):
@@ -189,14 +192,18 @@ def handle_text(data):
 
 if __name__ == '__main__':
     import os
-    from OpenSSL import SSL
-    
     port = int(os.environ.get("PORT", 5000))
-    context = SSL.Context(SSL.TLSv1_2_METHOD)
-    context.use_privatekey_file('server.key')
-    context.use_certificate_file('server.crt')
     
-    socketio.run(app, 
-                 host='0.0.0.0', 
-                 port=port,
-                 ssl_context=(context.get_certificate(), context.get_privatekey()))
+    if os.environ.get('ENVIRONMENT') == 'production':
+        # Production: Let Gunicorn handle SSL
+        socketio.run(app, host='0.0.0.0', port=port)
+    else:
+        # Development: Use SSL locally
+        from OpenSSL import SSL
+        context = SSL.Context(SSL.TLSv1_2_METHOD)
+        context.use_privatekey_file('server.key')
+        context.use_certificate_file('server.crt')
+        socketio.run(app, 
+                    host='0.0.0.0', 
+                    port=port,
+                    ssl_context=(context.get_certificate(), context.get_privatekey()))
