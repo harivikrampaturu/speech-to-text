@@ -5,7 +5,6 @@ import re
 from flask import Flask, request
 from flask_socketio import SocketIO, emit
 import json
-from transformers import pipeline
 
 time_pattern = r"\b(?=[2]?\d{2}[0-3]):\d{2}(:\d{2})?\b"
 
@@ -164,11 +163,6 @@ def redact_text(text):
     
     return text
 
-def enhance_redaction(text):
-    classifier = pipeline("ner", model="dlb/pii-bert-base-uncased")
-    results = classifier(text)
-    # Process results and apply additional redaction
-    return text
 
 @socketio.on('text')
 def handle_text(data):
