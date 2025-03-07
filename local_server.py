@@ -5,6 +5,7 @@ import re
 from flask import Flask, request
 from flask_socketio import SocketIO, emit
 import json
+from flask_cors import CORS
 
 time_pattern = r"\b(?=[2]?\d{2}[0-3]):\d{2}(:\d{2})?\b"
 
@@ -128,9 +129,14 @@ class SpacyRedactor:
         return transcripts_list, redacted
 
 app = Flask(__name__)
-socketio = SocketIO(app, cors_allowed_origins=["https://speech-to-text-six-tau.vercel.app", 
-                                             "http://localhost:5000",
-                                             "https://speech-to-text-six-tau.vercel.app"])
+CORS(app, resources={r"/*": {"origins": [
+    "https://speech-to-text-six-tau.vercel.app",
+    "http://localhost:5000"
+]}})
+socketio = SocketIO(app, cors_allowed_origins=[
+    "https://speech-to-text-six-tau.vercel.app",
+    "http://localhost:5000"
+])
 redactor = SpacyRedactor()
 
 # Track connected clients

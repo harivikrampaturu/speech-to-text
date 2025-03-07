@@ -1,10 +1,11 @@
 from flask import Flask
 from flask_socketio import SocketIO, emit
 import re
-from transformers import pipeline
+from flask_cors import CORS
 
 app = Flask(__name__)
-socketio = SocketIO(app, cors_allowed_origins="*")
+CORS(app, resources={r"/*": {"origins": "https://speech-to-text-six-tau.vercel.app"}})
+socketio = SocketIO(app, cors_allowed_origins="https://speech-to-text-six-tau.vercel.app")
 
 def redact_text(text):
     # CVV variations and common mispronunciations
@@ -51,11 +52,6 @@ def redact_text(text):
     
     return text
 
-def enhance_redaction(text):
-    classifier = pipeline("ner", model="dlb/pii-bert-base-uncased")
-    results = classifier(text)
-    # Process results and apply additional redaction
-    return text
 
 @socketio.on('text')
 def handle_text(data):
