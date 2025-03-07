@@ -5,6 +5,7 @@ import re
 from flask import Flask, request
 from flask_socketio import SocketIO, emit
 import json
+from transformers import pipeline
 
 time_pattern = r"\b(?=[2]?\d{2}[0-3]):\d{2}(:\d{2})?\b"
 
@@ -151,49 +152,38 @@ def handle_disconnect():
         print(f"Client disconnected: {client_id} ({connected_clients[client_id]['type']})")
         del connected_clients[client_id]
 
+def redact_text(text):
+    # CVV variations and common mispronunciations
+    cvv_terms = r'(?i)(?:cvv|cvc|cvv2|cid|security code|verification code|' \
+                'cbb|cbv|ccv|cdd|cdv|csv|' \
+                'see vv|see v v|c v v|c vv|cv v)'  # Spelled out variations
+    
+    # ... existing code ...
+    
+    return text
+
+def enhance_redaction(text):
+    classifier = pipeline("ner", model="dlb/pii-bert-base-uncased")
+    results = classifier(text)
+    # Process results and apply additional redaction
+    return text
+
 @socketio.on('text')
 def handle_text(data):
     text = data.get('text', '')
-    client_id = request.sid
-    client_type = connected_clients.get(client_id, {}).get('type', 'customer')
+    client_type = data.get('clientType', 'unknown')
+    redacted = redact_text(text)
     
-    # Create a simple transcript structure for the redactor
-    transcript = [
-        {
-            "timestamp": 1,
-            "channel_tag": "agent",
-            "transcript": "Can I have your CVV?"
-        },
-        {
-            "timestamp": 2,
-            "channel_tag": "customer",
-            "transcript": text
-        }
-    ]
+    # Send redacted text back to the client who sent it
+    emit('redacted_text', {'redacted_text': redacted})
     
-    # Apply redaction
-    redacted_transcript, was_redacted = redactor.redact_list(transcript)
-    
-    # Get the redacted customer text
-    redacted_text = redacted_transcript[1]["transcript"] if was_redacted else text
-    
-    # Log the redaction
-    print(f"Original: {text}")
-    print(f"Redacted: {redacted_text}")
-    print(f"Was redacted: {was_redacted}")
-    
-    # Send back to originating client
-    emit('redacted_text', {'redacted_text': redacted_text})
-    
-    # Broadcast to all clients (except sender)
+    # Broadcast chat message to all clients
     emit('chat_message', {
-        'sender_type': client_type,
-        'message': f"{client_type}: {redacted_text}"    
-    }, broadcast=True, include_self=False)
+        'message': redacted,
+        'sender_type': client_type
+    }, broadcast=True)
 
 if __name__ == '__main__':
-    # Keep the existing test code if needed for debugging
-    # ... existing test code ...
-    
-    # Start the Flask-SocketIO server
-    socketio.run(app, debug=True, host='10.1.30.58', port=5000)
+    import os
+    port = int(os.environ.get("PORT", 5000))
+    socketio.run(app, host='0.0.0.0', port=port)
