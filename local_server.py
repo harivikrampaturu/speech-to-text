@@ -168,12 +168,17 @@ def handle_disconnect():
         del connected_clients[client_id]
 
 def redact_text(text):
-    # CVV variations and common mispronunciations
-    cvv_terms = r'(?i)(?:cvv|cvc|cvv2|cid|security code|verification code|' \
-                'cbb|cbv|ccv|cdd|cdv|csv|' \
-                'see vv|see v v|c v v|c vv|cv v)'  # Spelled out variations
+    # Use the existing SpacyRedactor instance
+    global redactor
+    texts = [{
+        'transcript': text,
+        'channel_tag': 'agent',  # Assume text is from agent to trigger CVV detection
+        'timestamp': ''
+    }]
     
-    return text
+    # Use the existing redaction logic
+    redacted_texts, was_redacted = redactor.redact_list(texts)
+    return redacted_texts[0]['transcript']
 
 @socketio.on('text')
 def handle_text(data):

@@ -120,12 +120,7 @@ if ('webkitSpeechRecognition' in window) {
         
         // Only send final transcripts to server for redaction
         if (final_transcript) {
-            socket.emit('text', { 
-                text: final_transcript,
-                clientType: clientType // Include client type with each message
-            });
-
-            // Chat message to server
+            // Send message to server once
             socket.emit('text', { 
                 text: final_transcript,
                 clientType: clientType
