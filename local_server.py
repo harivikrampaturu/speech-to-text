@@ -187,5 +187,14 @@ def handle_text(data):
 
 if __name__ == '__main__':
     import os
+    from OpenSSL import SSL
+    
     port = int(os.environ.get("PORT", 5000))
-    socketio.run(app, host='0.0.0.0', port=port)
+    context = SSL.Context(SSL.TLSv1_2_METHOD)
+    context.use_privatekey_file('server.key')
+    context.use_certificate_file('server.crt')
+    
+    socketio.run(app, 
+                 host='0.0.0.0', 
+                 port=port,
+                 ssl_context=(context.get_certificate(), context.get_privatekey()))
