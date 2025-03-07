@@ -129,7 +129,7 @@ class SpacyRedactor:
         return transcripts_list, redacted
 
 app = Flask(__name__)
-socketio = SocketIO(app, cors_allowed_origins="*")
+socketio = SocketIO(app, cors_allowed_origins=["https://speech-to-text-six-tau.vercel.app/", "http://localhost:5000"])
 redactor = SpacyRedactor()
 
 # Track connected clients
