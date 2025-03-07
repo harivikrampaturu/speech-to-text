@@ -184,15 +184,27 @@ def redact_text(text):
 def handle_text(data):
     text = data.get('text', '')
     client_type = data.get('clientType', 'unknown')
-    redacted = redact_text(text)
+    timestamp = data.get('timestamp', '')  # Add timestamp from client
+
+    # Create properly formatted input for redactor
+    texts = [{
+        'transcript': text,
+        'channel_tag': client_type,  # Use actual client type instead of assuming agent
+        'timestamp': timestamp
+    }]
+    
+    # Use the redactor to process the text
+    redacted_texts, was_redacted = redactor.redact_list(texts)
+    redacted_text = redacted_texts[0]['transcript']
     
     # Send redacted text back to the client who sent it
-    emit('redacted_text', {'redacted_text': redacted})
+    emit('redacted_text', {'redacted_text': redacted_text})
     
     # Broadcast chat message to all clients
     emit('chat_message', {
-        'message': redacted,
-        'sender_type': client_type
+        'message': redacted_text,
+        'sender_type': client_type,
+        'timestamp': timestamp
     }, broadcast=True)
 
 if __name__ == '__main__':
