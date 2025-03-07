@@ -104,30 +104,29 @@ class SpacyRedactor:
         # First pass: look for CVV triggers in agent messages
         for i, text in enumerate(transcripts_list):
             if text["channel_tag"] == "agent":
-                doc = self.nlp(text["transcript"])
+                doc = self.nlp(text["transcript"].lower())  # Convert to lowercase for matching
                 matches = self.matcher(doc)
-                if len(matches) > 0:
+                if matches:  # If any CVV trigger is found
                     cvv_found = True
                     cvv_index = i
                     break
 
         # Second pass: look for numbers in customer messages after CVV trigger
         if cvv_found:
-            customer_messages_searched = 0
-            for i, customer_text in enumerate(transcripts_list[cvv_index:]):
-                if customer_text["channel_tag"] == "customer":
-                    customer_messages_searched += 1
-                    text = customer_text["transcript"]
-                    doc = self.nlp(text)
-                    num_start, num_end = self._find_numbers_after_match(doc, 0)
-
-                    if num_start is not None and num_end is not None:
-                        redacted = True
-                        customer_text["transcript"] = text[:num_start] + "REDACTED" + text[num_end:]
-
-                    # Stop searching after 5 customer messages
-                    if customer_messages_searched >= 5:
-                        break
+            for text in transcripts_list[cvv_index:]:
+                if text["channel_tag"] == "customer":
+                    doc = self.nlp(text["transcript"])
+                    # Look for 3-4 digit numbers
+                    for token in doc:
+                        if token.text.isdigit() and 3 <= len(token.text) <= 4:
+                            redacted = True
+                            text["transcript"] = text["transcript"].replace(token.text, "REDACTED")
+                        # Also check for numbers in text like "567" or "my CVV is 567"
+                        matches = re.findall(r'\b\d{3,4}\b', text["transcript"])
+                        if matches:
+                            redacted = True
+                            for match in matches:
+                                text["transcript"] = text["transcript"].replace(match, "REDACTED")
 
         return transcripts_list, redacted
 
@@ -184,28 +183,42 @@ def redact_text(text):
 @socketio.on('text')
 def handle_text(data):
     text = data.get('text', '')
-    client_type = data.get('clientType', 'unknown')
-    timestamp = data.get('timestamp', '')  # Add timestamp from client
-
-    # Create properly formatted input for redactor
-    texts = [{
-        'transcript': text,
-        'channel_tag': client_type,  # Use actual client type instead of assuming agent
-        'timestamp': timestamp
-    }]
+    client_id = request.sid
+    client_type = connected_clients.get(client_id, {}).get('type', 'customer')
     
-    # Use the redactor to process the text
-    redacted_texts, was_redacted = redactor.redact_list(texts)
-    redacted_text = redacted_texts[0]['transcript']
+    # Create a simple transcript structure for the redactor
+    transcript = [
+        {
+            "timestamp": 1,
+            "channel_tag": "agent",
+            "transcript": "Can I have your CVV?"  # Mock trigger
+        },
+        {
+            "timestamp": 2,
+            "channel_tag": client_type,
+            "transcript": text
+        }
+    ]
     
-    # Send redacted text back to the client who sent it
+    # Apply redaction
+    redacted_transcript, was_redacted = redactor.redact_list(transcript)
+    
+    # Get the redacted text
+    redacted_text = redacted_transcript[1]["transcript"] if was_redacted else text
+    
+    # Log for debugging
+    print(f"Original: {text}")
+    print(f"Redacted: {redacted_text}")
+    print(f"Was redacted: {was_redacted}")
+    
+    # Send back to originating client
     emit('redacted_text', {'redacted_text': redacted_text})
     
-    # Broadcast chat message to all clients
+    # Broadcast to all clients
     emit('chat_message', {
         'message': redacted_text,
         'sender_type': client_type,
-        'timestamp': timestamp
+        'timestamp': data.get('timestamp', '')
     }, broadcast=True)
 
 if __name__ == '__main__':
