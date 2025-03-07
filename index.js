@@ -86,9 +86,6 @@ function sendMessage() {
             clientType: clientType
         });
         
-        // Add message to own chat (optionally, you can wait for server response)
-        addMessageToChat(clientType, message);
-        
         // Clear input
         messageInput.value = '';
     }
@@ -120,12 +117,10 @@ if ('webkitSpeechRecognition' in window) {
         
         // Only send final transcripts to server for redaction
         if (final_transcript) {
-            // Send message to server once
             socket.emit('text', { 
                 text: final_transcript,
                 clientType: clientType
             });
-            addMessageToChat(clientType, final_transcript);
         }
     };
 

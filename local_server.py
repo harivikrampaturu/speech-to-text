@@ -99,34 +99,35 @@ class SpacyRedactor:
     def redact_list(self, transcripts_list):
         cvv_found = False
         redacted = False
+        cvv_index = -1
 
+        # First pass: look for CVV triggers in agent messages
         for i, text in enumerate(transcripts_list):
-            if text["channel_tag"] == "customer":
-                continue
-            else:
+            if text["channel_tag"] == "agent":
                 doc = self.nlp(text["transcript"])
                 matches = self.matcher(doc)
-            if len(matches) > 0:
-                cvv_found = True
-                cvv_index = i
-                break
+                if len(matches) > 0:
+                    cvv_found = True
+                    cvv_index = i
+                    break
 
+        # Second pass: look for numbers in customer messages after CVV trigger
         if cvv_found:
             customer_messages_searched = 0
-            for customer_text in transcripts_list[cvv_index:]:
-                if customer_text["channel_tag"] == "agent":
-                    continue
-                customer_messages_searched += 1
-                text = customer_text["transcript"]
-                doc = self.nlp(customer_text["transcript"])
-                num_start, num_end = self._find_numbers_after_match(doc, 0)
+            for i, customer_text in enumerate(transcripts_list[cvv_index:]):
+                if customer_text["channel_tag"] == "customer":
+                    customer_messages_searched += 1
+                    text = customer_text["transcript"]
+                    doc = self.nlp(text)
+                    num_start, num_end = self._find_numbers_after_match(doc, 0)
 
-                if num_start is not None and num_end is not None:
-                    redacted = True
-                    customer_text["transcript"] = text[:num_start] + "REDACTED" + text[num_end:]
+                    if num_start is not None and num_end is not None:
+                        redacted = True
+                        customer_text["transcript"] = text[:num_start] + "REDACTED" + text[num_end:]
 
-            if customer_messages_searched >= 5:
-                redacted = True
+                    # Stop searching after 5 customer messages
+                    if customer_messages_searched >= 5:
+                        break
 
         return transcripts_list, redacted
 
