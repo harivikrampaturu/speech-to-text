@@ -18,7 +18,7 @@ const clientTypeDisplay = document.getElementById('clientTypeDisplay');
 clientTypeDisplay.textContent = `Connected as: ${clientType}`;
 
 // Connect to your IP address
-const socket = io('http://10.1.30.58:5000', {
+const socket = io('https://speech-to-text-5lxk.onrender.com', {
     reconnection: true,
     reconnectionAttempts: Infinity,
     reconnectionDelay: 1000,
