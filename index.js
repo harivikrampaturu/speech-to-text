@@ -86,6 +86,9 @@ function sendMessage() {
             clientType: clientType
         });
         
+        // Add message to own chat (optionally, you can wait for server response)
+        addMessageToChat(clientType, message);
+        
         // Clear input
         messageInput.value = '';
     }
@@ -119,8 +122,15 @@ if ('webkitSpeechRecognition' in window) {
         if (final_transcript) {
             socket.emit('text', { 
                 text: final_transcript,
+                clientType: clientType // Include client type with each message
+            });
+
+            // Chat message to server
+            socket.emit('text', { 
+                text: final_transcript,
                 clientType: clientType
             });
+            addMessageToChat(clientType, final_transcript);
         }
     };
 
