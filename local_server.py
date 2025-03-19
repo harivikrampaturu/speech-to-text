@@ -27,11 +27,15 @@ class SpacyRedactor:
             [{"LOWER": "cbv"}],
             [{"LOWER": "cbv2"}],
             [{"LOWER": "cv"}],
-            [{"LOWER": "security"}, {"LOWER": "code"}],
-            [{"LOWER": "verification"}, {"LOWER": "code"}],
-            [{"LOWER": "verification"}, {"LOWER": "value"}],
-            [{"LOWER": "three | 3"}],
-            [{"LOWER": "three | 3"}],
+            [{"LOWER": "security code"}],# {"LOWER": "code"}],
+            [{"LOWER": "verification code"}],# {"LOWER": "code"}],
+            [{"LOWER": "verification value"}],# {"LOWER": "value"}],
+            [{"LOWER": "three numbers"}],
+            [{"LOWER": "three digits"}],
+            [{"LOWER": "3 numbers"}],
+            [{"LOWER": "3 digits"}],
+            [{"LOWER": "reverse"}],
+            [{"LOWER": "rivers"}],
             [{"LOWER": "back"}, {"LOWER": "of"}, {"OP": "*"}]
         ]
 
@@ -152,12 +156,12 @@ class SpacyRedactor:
 
             if len(matches) > 0:
                 self.cvv_found = True
-                
-            
+
+
         if self.cvv_found:
             if text["channel_tag"] == "customer":
                 customer_text = text
-        
+
                 self.customer_messages_searched += 1
                 temp_text = customer_text["transcript"]
                 doc = self.nlp(customer_text["transcript"])
@@ -168,14 +172,14 @@ class SpacyRedactor:
                     self.cvv_found = False
                     self.customer_messages_searched = 0
                     customer_text["transcript"] = temp_text[:num_start] + "REDACTED" + temp_text[num_end:]
-                    
+
 
                 if self.customer_messages_searched >= 5:
                     self.redacted = True
-        
+
 
                 return transcripts_dict, self.redacted
-        
+
         return transcripts_dict, self.redacted
 
 app = Flask(__name__)
@@ -212,7 +216,7 @@ def handle_text(data):
     text = data.get('text', '')
     client_id = request.sid
     client_type = connected_clients.get(client_id, {}).get('type', 'customer')
-    
+
     # Create a simple transcript structure for the redactor
     transcript = {
                "timestamp": 1,
@@ -221,22 +225,22 @@ def handle_text(data):
                 "channel_tag": client_type,
                 "transcript": text
                }
-    
+
     # Apply redaction
     redacted_transcript, was_redacted = redactor.redact_list_new(transcript)
-    
+
     # Get the redacted customer text
     #redacted_text = redacted_transcript[1]["transcript"] if was_redacted else text
     redacted_text = redacted_transcript["transcript"] if was_redacted else text
-    
+
     # Log the redaction
     print(f"Original: {text}")
     print(f"Redacted: {redacted_text}")
     print(f"Was redacted: {was_redacted}")
-    
+
     # Send back to originating client
     emit('redacted_text', {'redacted_text': redacted_text})
-    
+
     # Broadcast to all clients (except sender)
     emit('chat_message', {
         'sender_type': client_type,

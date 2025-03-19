@@ -13,6 +13,7 @@ const chatContainer = document.getElementById('chatContainer');
 const messageInput = document.getElementById('messageInput');
 const sendBtn = document.getElementById('sendBtn');
 const clientTypeDisplay = document.getElementById('clientTypeDisplay');
+const SOCKET_URL = 'https://speech-to-text-wetd.onrender.com';
 
 // Display client type
 clientTypeDisplay.textContent = `Connected as: ${clientType}`;
@@ -20,7 +21,7 @@ clientTypeDisplay.textContent = `Connected as: ${clientType}`;
 // Connect to your IP address
 // https://speech-to-text-wetd.onrender.com - vikram
 // https://speech-to-text-5lxk.onrender.com' - murthy
-const socket = io('https://speech-to-text-wetd.onrender.com', {
+const socket = io(SOCKET_URL, {
     reconnection: true,
     reconnectionAttempts: Infinity,
     reconnectionDelay: 1000,
@@ -29,34 +30,42 @@ const socket = io('https://speech-to-text-wetd.onrender.com', {
     query: { type: clientType } // Send client type with connection
 });
 
-socket.on('connect', () => {
-    console.log('Connected to server');
-});
+// Add a flag to track if we should maintain connection
+let maintainConnection = true;
 
-socket.on('disconnect', () => {
-    console.log('Disconnected from server, attempting to reconnect...');
-});
+// Move all socket event setup to this function
+function setupSocketListeners() {
+    socket.on('connect', () => {
+        console.log('Connected to server');
+    });
 
-socket.on('reconnect', (attemptNumber) => {
-    console.log('Reconnected to server after', attemptNumber, 'attempts');
-});
+    socket.on('disconnect', () => {
+        console.log('Disconnected from server, attempting to reconnect...');
+        if (maintainConnection) {
+            reconnectSocket();
+        }
+    });
 
-socket.on('reconnect_error', (error) => {
-    console.error('Reconnection error:', error);
-});
+    socket.on('reconnect', (attemptNumber) => {
+        console.log('Reconnected to server after', attemptNumber, 'attempts');
+    });
 
-socket.on('redacted_text', (data) => {
-    redactedText.value = data.redacted_text;
-});
+    socket.on('reconnect_error', (error) => {
+        console.error('Reconnection error:', error);
+    });
 
-// Display chat messages
-socket.on('chat_message', (data) => {
-    // Display the message in the UI
-    console.log(`${data.sender_type}: ${data.message}`);
-    
-    // Add message to chat container
-    addMessageToChat(data.sender_type, data.message);
-});
+    socket.on('redacted_text', (data) => {
+        redactedText.value = data.redacted_text;
+    });
+
+    socket.on('chat_message', (data) => {
+        console.log(`${data.sender_type}: ${data.message}`);
+        addMessageToChat(data.sender_type, data.message);
+    });
+}
+
+// Call setupSocketListeners initially
+setupSocketListeners();
 
 // Function to add message to chat
 function addMessageToChat(senderType, message) {
@@ -148,6 +157,10 @@ if ('webkitSpeechRecognition' in window) {
 
 // Event listeners for buttons
 startBtn.addEventListener('click', () => {
+    maintainConnection = true;
+    if (!socket.connected) {
+        reconnectSocket();
+    }
     recognition.start();
     startBtn.disabled = true;
     stopBtn.disabled = false;
@@ -157,4 +170,25 @@ stopBtn.addEventListener('click', () => {
     recognition.stop();
     startBtn.disabled = false;
     stopBtn.disabled = true;
+    maintainConnection = false;
+    socket.disconnect();
 });
+
+// Add reconnection function
+function reconnectSocket() {
+    if (!maintainConnection) return;
+    
+    if (!socket.connected) {
+        socket = io(SOCKET_URL, {
+            reconnection: true,
+            reconnectionAttempts: Infinity,
+            reconnectionDelay: 1000,
+            reconnectionDelayMax: 5000,
+            timeout: 20000,
+            query: { type: clientType }
+        });
+        
+        // Reattach event listeners
+        setupSocketListeners();
+    }
+}
