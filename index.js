@@ -18,6 +18,16 @@ const SOCKET_URL = 'https://speech-to-text-wetd.onrender.com';
 // Display client type
 clientTypeDisplay.textContent = `Connected as: ${clientType}`;
 
+// Add connection status indicator
+const connectionStatus = document.createElement('div');
+connectionStatus.id = 'connectionStatus';
+clientTypeDisplay.parentNode.insertBefore(connectionStatus, clientTypeDisplay.nextSibling);
+
+function updateConnectionStatus(status) {
+    connectionStatus.textContent = `Status: ${status}`;
+    connectionStatus.className = `status-${status.toLowerCase()}`;
+}
+
 // Connect to your IP address
 // https://speech-to-text-wetd.onrender.com - vikram
 // https://speech-to-text-5lxk.onrender.com' - murthy
@@ -37,10 +47,12 @@ let maintainConnection = true;
 function setupSocketListeners() {
     socket.on('connect', () => {
         console.log('Connected to server');
+        updateConnectionStatus('Connected');
     });
 
     socket.on('disconnect', () => {
         console.log('Disconnected from server, attempting to reconnect...');
+        updateConnectionStatus('Disconnecting');
         if (maintainConnection) {
             reconnectSocket();
         }
@@ -71,10 +83,14 @@ setupSocketListeners();
 function addMessageToChat(senderType, message) {
     const messageEl = document.createElement('div');
     messageEl.className = `message ${senderType}`;
-    messageEl.textContent = message;
-    chatContainer.appendChild(messageEl);
     
-    // Scroll to bottom of chat
+    const timestamp = new Date().toLocaleTimeString();
+    messageEl.innerHTML = `
+        <span class="message-time">${timestamp}</span>
+        <span class="message-text">${message}</span>
+    `;
+    
+    chatContainer.appendChild(messageEl);
     chatContainer.scrollTop = chatContainer.scrollHeight;
 }
 
@@ -179,16 +195,6 @@ function reconnectSocket() {
     if (!maintainConnection) return;
     
     if (!socket.connected) {
-        socket = io(SOCKET_URL, {
-            reconnection: true,
-            reconnectionAttempts: Infinity,
-            reconnectionDelay: 1000,
-            reconnectionDelayMax: 5000,
-            timeout: 20000,
-            query: { type: clientType }
-        });
-        
-        // Reattach event listeners
-        setupSocketListeners();
+        socket.connect();
     }
 }
