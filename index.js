@@ -125,7 +125,7 @@ if ('webkitSpeechRecognition' in window) {
                 text: final_transcript,
                 clientType: clientType
             });
-            // addMessageToChat(clientType, final_transcript);
+             addMessageToChat(clientType, final_transcript);
         }
     };
 
