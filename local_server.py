@@ -179,11 +179,7 @@ class SpacyRedactor:
         return transcripts_dict, self.redacted
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": [
-    "https://speech-to-text-six-tau.vercel.app",
-    "http://localhost:5000",
-    "https://localhost:5000"
-]}})
+CORS(app, resources={r"/*": {"origins": "*"}})
 socketio = SocketIO(app, cors_allowed_origins="*")
 redactor = SpacyRedactor()
 
