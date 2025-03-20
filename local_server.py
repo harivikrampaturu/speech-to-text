@@ -30,6 +30,7 @@ class SpacyRedactor:
             [{"LOWER": "security"}, {"LOWER": "code"}],
             [{"LOWER": "verification"}, {"LOWER": "code"}],
             [{"LOWER": "verification"}, {"LOWER": "value"}],
+            [{"LOWER": "verification"}, {"LOWER": "number"}],
             [{"LOWER": "three"}, {"LOWER": "numbers"}],
             [{"LOWER": "three"}, {"LOWER": "digits"}],
             [{"LOWER": "3"}, {"LOWER": "numbers"}],
