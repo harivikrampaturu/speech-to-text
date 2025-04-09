@@ -8,10 +8,12 @@ from flask import Flask, request
 from flask_socketio import SocketIO, emit
 import json
 from flask_cors import CORS
+import requests
  
 # time_pattern = r"\b(?=[2]?\d{2}[0-3]):\d{2}(:\d{2})?\b"
  
 time_pattern = r"\b(?:[01]?\d|2[0-3]):([0-5]?\d)(?:\d?[][APap][Mm])?\b"
+public_url = 'http://64.74.143.76:8800/generate/'
  
 class SpacyRedactor:
     def __init__(self):
@@ -205,13 +207,16 @@ def handle_connect():
         'id': client_id
     }
     print(f"Client connected: {client_id} as {client_type}")
+    print(f"All connected clients: {connected_clients}")
  
 @socketio.on('disconnect')
 def handle_disconnect():
     client_id = request.sid
     if client_id in connected_clients:
         print(f"Client disconnected: {client_id} ({connected_clients[client_id]['type']})")
+        print(f"Before disconnect - connected clients: {connected_clients}")
         del connected_clients[client_id]
+        print(f"After disconnect - connected clients: {connected_clients}")
  
 @socketio.on('text')
 def handle_text(data):
@@ -219,26 +224,42 @@ def handle_text(data):
     client_id = request.sid
     client_type = connected_clients.get(client_id, {}).get('type', 'customer')
     
+    print(f"Message received from client {client_id} ({client_type})")
+    print(f"Current connected clients: {connected_clients}")
+    
     # Create a simple transcript structure for the redactor
-    transcript = {
-               "timestamp": 1,
+    transcript = [{
+            #    "timestamp": 1,
                 ##"channel_tag": "agent",
                 ##"transcript": "Can I have your CVV?"
-                "channel_tag": client_type,
-                "transcript": text
-               }
+
+                # "channel_tag": client_type,
+                "role": client_type,
+                "content": text
+               }]
+    
+
+    # user_input = [{'role':'Agent','content':'What are the 3 numbers next to the signature strip of your card'},
+    #             {'role':'Customer','content':'let me check, it is 3:52'}]
+
+    # vpn_url = "http://172.16.0.11:8800/generate/"
+
+    data = {"prompt": transcript, "max_tokens": 32, "temperature": 0.2}
+    print(data)
+    response = requests.post(public_url, json=data)
+    print(response.json())
     
     # Apply redaction
-    redacted_transcript, was_redacted = redactor.redact_list_new(transcript)
+    # redacted_transcript, was_redacted = redactor.redact_list_new(transcript)
     
     # Get the redacted customer text
     #redacted_text = redacted_transcript[1]["transcript"] if was_redacted else text
-    redacted_text = redacted_transcript["transcript"] if was_redacted else text
+    redacted_text = response.json() #redacted_transcript["transcript"] if was_redacted else text
     
     # Log the redaction
     print(f"Original: {text}")
     print(f"Redacted: {redacted_text}")
-    print(f"Was redacted: {was_redacted}")
+    # print(f"Was redacted: {was_redacted}")
     
     # Send back to originating client
     emit('redacted_text', {'redacted_text': redacted_text})
@@ -262,5 +283,5 @@ if __name__ == '__main__':
         socketio.run(app, host='0.0.0.0', port=port)
     else:
         # Development:  locally
-        socketio.run(app, debug=True, host='10.1.30.79', port=5000)
+        socketio.run(app, debug=True, host='10.1.30.89', port=5000)
  

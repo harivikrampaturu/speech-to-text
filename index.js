@@ -13,7 +13,7 @@ const chatContainer = document.getElementById('chatContainer');
 const messageInput = document.getElementById('messageInput');
 const sendBtn = document.getElementById('sendBtn');
 const clientTypeDisplay = document.getElementById('clientTypeDisplay');
-const SOCKET_URL = 'https://speech-to-text-wetd.onrender.com';
+const SOCKET_URL = 'http://10.1.30.89:5000'; // 'https://speech-to-text-wetd.onrender.com';
 
 // Display client type
 clientTypeDisplay.textContent = `Connected as: ${clientType}`;
